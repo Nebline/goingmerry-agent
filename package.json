@@ -1,0 +1,16 @@
+{
+  "name": "merry-agent",
+  "version": "1.0.0",
+  "description": "Orquestador CLI de agentes de producción — Node.js + Claude Code + OpenCode GO",
+  "type": "module",
+  "main": "src/cli/index.js",
+  "scripts": {
+    "start": "node src/cli/index.js",
+    "dev": "node --watch src/cli/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": ["agent", "orchestrator", "cli", "ai"],
+  "license": "MIT"
+}
