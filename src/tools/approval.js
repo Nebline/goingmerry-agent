@@ -2,6 +2,17 @@
 
 import * as readline from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
+import config from '../../merry.config.js'
+
+/**
+ * Indica si un tipo de acción requiere confirmación humana según la configuración.
+ * @param {string} actionType - clave de config.approvalGate.requireFor
+ * @returns {boolean}
+ */
+export function requiresApproval(actionType) {
+  return config.approvalGate.enabled &&
+    config.approvalGate.requireFor.includes(actionType)
+}
 
 /**
  * Solicita confirmación explícita al usuario antes de ejecutar una acción crítica.

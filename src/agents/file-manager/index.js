@@ -2,7 +2,7 @@
 
 import { createReadStream, createWriteStream } from 'node:fs'
 import { readFile, writeFile, rename, unlink, mkdir } from 'node:fs/promises'
-import { requiresApproval } from '../../orchestrator/index.js'
+import { requiresApproval } from '../../tools/approval.js'
 
 /**
  * @param {object} task

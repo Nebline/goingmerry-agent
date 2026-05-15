@@ -2,7 +2,7 @@
 
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
-import { requiresApproval } from '../../orchestrator/index.js'
+import { requiresApproval } from '../../tools/approval.js'
 
 const execAsync = promisify(exec)
 
