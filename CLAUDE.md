@@ -3,13 +3,27 @@
 <!-- BLOQUE COMPACTO: leer siempre al inicio de cada sesión -->
 ```
 MERRY v1.0 | Orquestador agentes | Stack: Node.js/JS + Claude Code + OpenCode GO + GitHub
-SUBAGENTES: coder | file-manager | terminal | researcher | reporter | web-designer
+REPO: Nebline/goingmerry-agent | rama: master
+SUBAGENTES FUNCIONALES: coder | file-manager | terminal | researcher
+SUBAGENTES STUB: reporter | web-designer
 PRIORIDAD: artefacto funcional > explicación | haiku para tareas simples | sonnet para complejas
-GIT: feat/* fix/* → dev → main (PR obligatorio) | Conventional Commits | no push directo a main
+GIT: feat/* fix/* → master | Conventional Commits | no push directo sin PR
 SEGURIDAD: ApprovalGate para: borrados, push main, prod DB, secretos, webhooks
+SIN OpenAI — solo Anthropic (ANTHROPIC_API_KEY en .env.local)
+VOZ: Windows Speech Recognition via PowerShell (sin API key extra)
 OUTPUT: directo, sin relleno | código ejecutable | confirmar con evidencia
 NUNCA: código no ejecutable | commits mixtos | modelos sobredimensionados | datos inventados
 ```
+
+ESTADO (2026-05-15):
+- Loop completo funcional: CLI → clasificador → agente → ApprovalGate → resultado
+- TUI: ASCII Going Merry + Iron Man colors (chalk/ora) + REPL interactivo + voz
+- Arrancar: node --env-file .env.local src/cli/index.js
+
+PENDIENTE:
+- P1: implementar reporter + web-designer
+- P2: persistencia SQLite + logger a archivo
+- P3: task decomposer, N8N, MCP, flags CLI, ejecución paralela
 <!-- FIN BLOQUE COMPACTO -->
 
 ---
