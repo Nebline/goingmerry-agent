@@ -1,15 +1,19 @@
 import config from '../../merry.config.js'
 import { approvalGate } from '../tools/approval.js'
 import { logAction } from '../memory/index.js'
+import { makeResult } from '../types/result.js'
 import { classify } from './classifier.js'
 import { loadAgent } from './loader.js'
-
-// Agentes que requieren ApprovalGate para ciertos inputs (el agente lo evalúa internamente)
-// El orquestador puede añadir una capa de aprobación de alto nivel aquí si se necesita.
+import { decompose } from './decomposer.js'
 
 export async function run(input, { quiet = false } = {}) {
-  const { agent: agentName, action, method } = await classify(input)
+  // Multi-step: decompose and run in parallel
+  const subtasks = await decompose(input)
+  if (subtasks) {
+    return runParallel(subtasks, { quiet })
+  }
 
+  const { agent: agentName, action, method } = await classify(input)
   if (!quiet) console.log(`[Merry] → ${agentName} (via ${method})`)
 
   let agent
@@ -18,7 +22,7 @@ export async function run(input, { quiet = false } = {}) {
   } catch {
     const msg = `Agente "${agentName}" no disponible en esta versión.`
     if (!quiet) console.error(`[Merry] ${msg}`)
-    return { success: false, output: msg, agent: agentName, action, error: msg, ts: Date.now() }
+    return makeResult({ success: false, output: msg, agent: agentName, action, error: msg })
   }
 
   const task = buildTask(agentName, action, input)
@@ -30,12 +34,31 @@ export async function run(input, { quiet = false } = {}) {
   } catch (err) {
     logAction(agentName, input, 'error')
     if (!quiet) console.error(`[${agentName.toUpperCase()}] Error: ${err.message}`)
-    return { success: false, output: err.message, agent: agentName, action, error: err.message, ts: Date.now() }
+    return makeResult({ success: false, output: err.message, agent: agentName, action, error: err.message })
   }
 
   logAction(agentName, input, result.success ? 'ok' : 'error')
   if (!quiet) printResult(result)
   return result
+}
+
+async function runParallel(tasks, { quiet }) {
+  if (!quiet) console.log(`[Merry] → Tarea múltiple: ${tasks.length} subtareas en paralelo`)
+
+  const settled = await Promise.allSettled(tasks.map(t => run(t, { quiet: true })))
+
+  const lines = settled.map((r, i) => {
+    if (r.status === 'fulfilled') return `[${i + 1}] ✓  ${r.value.output}`
+    return `[${i + 1}] ✗  ${r.reason?.message ?? 'Error desconocido'}`
+  })
+
+  const allOk = settled.every(r => r.status === 'fulfilled' && r.value?.success)
+  return makeResult({
+    success: allOk,
+    output: lines.join('\n\n'),
+    agent: 'orchestrator',
+    action: 'multi-task',
+  })
 }
 
 export function requiresApproval(actionType) {
@@ -44,19 +67,22 @@ export function requiresApproval(actionType) {
 }
 
 function buildTask(agent, action, input) {
-  if (agent === 'terminal') {
-    return { command: input, cwd: process.cwd() }
+  switch (agent) {
+    case 'terminal':
+      return { command: input, cwd: process.cwd() }
+    case 'coder':
+      return { action, context: input }
+    case 'file-manager':
+      return buildFileTask(input)
+    case 'researcher':
+      return buildResearchTask(input)
+    case 'reporter':
+      return { action: 'report', context: input }
+    case 'web-designer':
+      return { action: 'build', spec: input }
+    default:
+      return { action, context: input }
   }
-  if (agent === 'coder') {
-    return { action, context: input }
-  }
-  if (agent === 'file-manager') {
-    return buildFileTask(input)
-  }
-  if (agent === 'researcher') {
-    return buildResearchTask(input)
-  }
-  return { action, context: input }
 }
 
 function buildFileTask(input) {
@@ -78,14 +104,13 @@ function buildFileTask(input) {
     const path = input.replace(/^(elimina|borra|eliminar|borrar)\s+(el\s+archivo\s+)?/i, '').trim()
     return { action: 'delete', path }
   }
-  // Default: list current directory
   return { action: 'list', path: '.' }
 }
 
 function buildResearchTask(input) {
-  const query = input.replace(/^(busca|investiga|search|encuentra|qué\s+es|explica)\s+/i, '').trim()
+  const query  = input.replace(/^(busca|investiga|search|encuentra|qué\s+es|explica)\s+/i, '').trim()
   const source = /\b(docs|documentaci[oó]n|readme|markdown)\b/i.test(input) ? 'docs' : 'codebase'
-  const depth = /\b(resume|resumen|detalle|detallado|sintetiza)\b/i.test(input) ? 2 : 1
+  const depth  = /\b(resume|resumen|detalle|detallado|sintetiza)\b/i.test(input) ? 2 : 1
   return { query, source, depth }
 }
 

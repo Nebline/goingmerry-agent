@@ -1,16 +1,23 @@
-// Capa 6: Memoria y estado — contexto de sesión y persistencia entre ejecuciones
+import { appendFile, writeFile, readFile, mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
 
-/**
- * Estado de la sesión actual (en memoria, volátil).
- * Para persistencia entre sesiones se usará SQLite en .merry/memory.db
- */
+const MERRY_DIR  = join(process.cwd(), '.merry')
+const LOG_FILE   = join(MERRY_DIR, 'memory.jsonl')
+const STATE_FILE = join(MERRY_DIR, 'session.json')
+
 const session = {
-  project: null,       // proyecto activo
-  branch: null,        // rama Git actual
-  modifiedFiles: [],   // archivos modificados sin commitear
-  pendingApprovals: [], // acciones esperando ApprovalGate
-  agentLog: [],        // historial de acciones de esta sesión
+  project: null,
+  branch: null,
+  modifiedFiles: [],
+  pendingApprovals: [],
+  agentLog: [],
 }
+
+// Load previous state on startup
+mkdir(MERRY_DIR, { recursive: true })
+  .then(() => readFile(STATE_FILE, 'utf-8'))
+  .then(raw => Object.assign(session, JSON.parse(raw)))
+  .catch(() => {})
 
 export function getSession() {
   return { ...session }
@@ -18,20 +25,28 @@ export function getSession() {
 
 export function setProject(name, branch) {
   session.project = name
-  session.branch = branch
+  session.branch  = branch
+  persist()
 }
 
 export function logAction(agent, action, result) {
-  session.agentLog.push({ agent, action, result, ts: Date.now() })
+  const entry = { agent, action, result, ts: Date.now() }
+  session.agentLog.push(entry)
+  appendFile(LOG_FILE, JSON.stringify(entry) + '\n', 'utf-8').catch(() => {})
 }
 
 export function addPendingApproval(action) {
   session.pendingApprovals.push(action)
+  persist()
 }
 
 export function clearPendingApproval(action) {
   session.pendingApprovals = session.pendingApprovals.filter(a => a !== action)
+  persist()
 }
 
-// TODO: implementar persistencia SQLite en .merry/memory.db
-// TODO: cargar estado de sesión anterior al iniciar
+function persist() {
+  mkdir(MERRY_DIR, { recursive: true })
+    .then(() => writeFile(STATE_FILE, JSON.stringify(session, null, 2), 'utf-8'))
+    .catch(() => {})
+}
